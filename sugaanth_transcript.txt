@@ -1,0 +1,52 @@
+Introduction:
+==============
+Thank you Manoj! 
+
+Greetings Everyone, This is Sugaanth and I will be explaining the slides on Regression Models and Auto-ML.
+
+
+Regression Models:
+===================
+
+So, when we moved away from statistical& Traditional models and towards Regression models Initially , 
+we started expirementing with multiple models 
+including XGBoost, KNN Regression, Lasso Regression and Random Forest Regression, 
+- We created features based on time series and historical feature expansion using sliding window conversions.
+• We also used feature importance to remove lesser significant features and keep the relevant features in place.
+• Our initial models such as XGBoost, and Lasso Regression were only able to capture only certain aspects of the trend.
+• later through visualization and analysis, We found that the tree based models were able to make better predictions, 
+and random forest model was the best optimal model.
+
+• So, The shortcomings of Random Forest Model was that
+ - There was no fixed set of hyper parameters for the model.
+ - Overall performance (average) was good, the peaks and lows were blunt and were not predicted accurately.
+
+
+Hence, we needed a more dynamic solution and  we went with AutoML.
+
+AutoML Model:
+=============
+• Automated machine learning (AutoML) uses a higher-level approach to handle machine learning task.
+• Our current approach, TPOT leverages on Genetic Programming Algorithm (GPA), which is stochastic in nature, 
+to automate the search for possible ML pipelines.
+• what this means is that contrary to grid search, we get different results each time we run tpot.
+• We were also able to significantly reduce the research/coding time, deliver pipelines faster and also have an approach that can be reused anywhere.
+
+• And also our approach is also highly configurable, which means we can select the  broad range of models with 
+inclusions/exclusions on preprocessors, feature selection techniques, estimators or transformer with customizations.
+
+• And we also have GPA based configurable variables, 
+• These customizations which i mentioned at the end, are the essence of making the Auto-ML work, and it has various parameters such as 
+	- Generations - which is the number of generations/iterations to be run.
+	- Population size - which is the total generated ML pipelines per generation.
+	- Number of Tests - which is the total number of times a pipeline is fitted with data and selecting the best pipeline out of those iterations.
+	- Max Evaluation Time- how long a particular pipeline is allowed to fit before force-failing.
+	- off spring size - No. of offsprings produced in each generation.
+	- mutation rate - how many pipelines to apply random changes
+
+• And the final nth generation model will contain a stacking estimator with all the best models fitted from each generation.
+
+
+
+
+And my colleage will aditya will be presenting the deck for LSTM Neural Network 
