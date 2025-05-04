@@ -1,0 +1,245 @@
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.util.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+
+/**
+ * This test class verifies the behavior of 
+ * VerifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable().
+ */
+public class VerifyStepDefsTest {
+
+    @Mock
+    private WebBrowserAgent webBrowserAgent;
+
+    @Mock
+    private WebDriver webDriver;
+
+    @Mock
+    private FastWebOperation fastWebOperation;
+
+    @Mock
+    private ElementHelper elementHelper;
+    
+    // Assume that VerifyStepDefs uses a helper to perform Gui operations – we inject a mock.
+    @Mock
+    private GuiCommonStepDefs guiCommonStepDefs;
+
+    private VerifyStepDefs verifyStepDefs;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        // Instantiate the class under test.
+        verifyStepDefs = new VerifyStepDefs();
+        // Inject the guiCommonStepDefs dependency.
+        // (Assumes a public setter exists; if not use reflection or adjust the design for testability.)
+        verifyStepDefs.setGuiCommonStepDefs(guiCommonStepDefs);
+
+        // Simulate that the WebBrowserAgent is available via AgentsManager.
+        AgentsManager.getInstance().getAgents().put("TestAgent", webBrowserAgent);
+        
+        // Set up the basic agent behavior.
+        when(webBrowserAgent.getDriver()).thenReturn(webDriver);
+        when(webBrowserAgent.getFastWebOperation()).thenReturn(fastWebOperation);
+        when(fastWebOperation.getElementHelper()).thenReturn(elementHelper);
+    }
+
+    // 1. Happy Path Test
+    @Test
+    void testHappyPath() throws Throwable {
+        // Arrange: Input parameters.
+        String agentName = "TestAgent";
+        String dropDownName = "dropDownName";
+        String listBoxName = "listBoxName";
+        List<String> expectedOptions = Arrays.asList("Option1", "Option2", "Option3");
+
+        // Use static mocking for GuiCommonStepDefs.processControl(...)
+        try (MockedStatic<GuiCommonStepDefs> mockedGuiCommon = mockStatic(GuiCommonStepDefs.class)) {
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(listBoxName))
+                           .thenReturn("processedListBoxName");
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(dropDownName))
+                           .thenReturn("processedDropDownName");
+
+            // Simulate obtaining a repository XPath value.
+            when(elementHelper.getRepoElementValue("processedListBoxName"))
+                  .thenReturn("//ul[@id='options']");
+
+            // First, the drop-down is clicked
+            // (guiCommonStepDefs.clickControl should work “silently” as it is a void method)
+
+            // Simulate that the driver finds an options list element.
+            WebElement optionsList = mock(WebElement.class);
+            when(webDriver.findElement(By.xpath("//ul[@id='options']"))).thenReturn(optionsList);
+
+            // Simulate list items inside the UL element.
+            WebElement item1 = mock(WebElement.class);
+            WebElement item2 = mock(WebElement.class);
+            WebElement item3 = mock(WebElement.class);
+            when(item1.getText()).thenReturn("Option1");
+            when(item2.getText()).thenReturn("Option2");
+            when(item3.getText()).thenReturn("Option3");
+            List<WebElement> listItems = Arrays.asList(item1, item2, item3);
+            when(optionsList.findElements(By.tagName("li"))).thenReturn(listItems);
+
+            // Act: Call the function under test.
+            verifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable(
+                agentName, dropDownName, listBoxName, expectedOptions);
+
+            // Assert:
+            // First call to click the drop-down (before finding options).
+            verify(guiCommonStepDefs).clickControl(agentName, "processedDropDownName");
+            // Then, for each list item except the last, the drop-down gets clicked again.
+            // In our case, two additional calls (for item1 and item2) are expected.
+            verify(guiCommonStepDefs, times(2)).clickControl(agentName, "processedDropDownName");
+            // Each list item is clicked.
+            verify(item1).click();
+            verify(item2).click();
+            verify(item3).click();
+        }
+    }
+
+    // 2. Test when the options list element is not found.
+    @Test
+    void testOptionsListNotFound() {
+        String agentName = "TestAgent";
+        String dropDownName = "dropDownName";
+        String listBoxName = "listBoxName";
+        List<String> expectedOptions = Collections.singletonList("Option1");
+
+        try (MockedStatic<GuiCommonStepDefs> mockedGuiCommon = mockStatic(GuiCommonStepDefs.class)) {
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(listBoxName))
+                           .thenReturn("processedListBoxName");
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(dropDownName))
+                           .thenReturn("processedDropDownName");
+
+            when(elementHelper.getRepoElementValue("processedListBoxName"))
+                  .thenReturn("//ul[@id='options']");
+
+            // Simulate that the driver returns null for the options list element.
+            when(webDriver.findElement(By.xpath("//ul[@id='options']"))).thenReturn(null);
+
+            IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+                verifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable(
+                    agentName, dropDownName, listBoxName, expectedOptions);
+            });
+            assertTrue(exception.getMessage().contains("Options list element not found"));
+        }
+    }
+
+    // 3. Test when no list items are found inside the options list.
+    @Test
+    void testNoListItemsFound() {
+        String agentName = "TestAgent";
+        String dropDownName = "dropDownName";
+        String listBoxName = "listBoxName";
+        List<String> expectedOptions = Collections.singletonList("Option1");
+
+        try (MockedStatic<GuiCommonStepDefs> mockedGuiCommon = mockStatic(GuiCommonStepDefs.class)) {
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(listBoxName))
+                           .thenReturn("processedListBoxName");
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(dropDownName))
+                           .thenReturn("processedDropDownName");
+
+            when(elementHelper.getRepoElementValue("processedListBoxName"))
+                  .thenReturn("//ul[@id='options']");
+
+            // Simulate that the options list element is found.
+            WebElement optionsList = mock(WebElement.class);
+            when(webDriver.findElement(By.xpath("//ul[@id='options']"))).thenReturn(optionsList);
+            // …but no list items are returned.
+            when(optionsList.findElements(By.tagName("li"))).thenReturn(Collections.emptyList());
+
+            IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+                verifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable(
+                    agentName, dropDownName, listBoxName, expectedOptions);
+            });
+            assertTrue(exception.getMessage().contains("No list item found"));
+        }
+    }
+
+    // 4. Test when the actual list items (their texts) do not match the expected options.
+    @Test
+    void testMismatchBetweenExpectedAndActualOptions() {
+        String agentName = "TestAgent";
+        String dropDownName = "dropDownName";
+        String listBoxName = "listBoxName";
+        // Expected two options.
+        List<String> expectedOptions = Arrays.asList("Option1", "Option2");
+
+        try (MockedStatic<GuiCommonStepDefs> mockedGuiCommon = mockStatic(GuiCommonStepDefs.class)) {
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(listBoxName))
+                           .thenReturn("processedListBoxName");
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(dropDownName))
+                           .thenReturn("processedDropDownName");
+
+            when(elementHelper.getRepoElementValue("processedListBoxName"))
+                  .thenReturn("//ul[@id='options']");
+
+            WebElement optionsList = mock(WebElement.class);
+            when(webDriver.findElement(By.xpath("//ul[@id='options']"))).thenReturn(optionsList);
+
+            // Create two list items but return a mismatched text for one.
+            WebElement item1 = mock(WebElement.class);
+            WebElement item2 = mock(WebElement.class);
+            when(item1.getText()).thenReturn("Option1");
+            when(item2.getText()).thenReturn("Option3"); // Mismatch here!
+            List<WebElement> listItems = Arrays.asList(item1, item2);
+            when(optionsList.findElements(By.tagName("li"))).thenReturn(listItems);
+
+            AssertionError error = assertThrows(AssertionError.class, () -> {
+                verifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable(
+                    agentName, dropDownName, listBoxName, expectedOptions);
+            });
+            assertTrue(error.getMessage().contains("List do not match"));
+        }
+    }
+
+    // 5. Test when clicking one of the list items throws an exception (i.e. not selectable).
+    @Test
+    void testOptionNotSelectable() {
+        String agentName = "TestAgent";
+        String dropDownName = "dropDownName";
+        String listBoxName = "listBoxName";
+        List<String> expectedOptions = Arrays.asList("Option1", "Option2");
+
+        try (MockedStatic<GuiCommonStepDefs> mockedGuiCommon = mockStatic(GuiCommonStepDefs.class)) {
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(listBoxName))
+                           .thenReturn("processedListBoxName");
+            mockedGuiCommon.when(() -> GuiCommonStepDefs.processControl(dropDownName))
+                           .thenReturn("processedDropDownName");
+
+            when(elementHelper.getRepoElementValue("processedListBoxName"))
+                  .thenReturn("//ul[@id='options']");
+
+            WebElement optionsList = mock(WebElement.class);
+            when(webDriver.findElement(By.xpath("//ul[@id='options']"))).thenReturn(optionsList);
+
+            WebElement item1 = mock(WebElement.class);
+            WebElement item2 = mock(WebElement.class);
+            when(item1.getText()).thenReturn("Option1");
+            when(item2.getText()).thenReturn("Option2");
+            List<WebElement> listItems = Arrays.asList(item1, item2);
+            when(optionsList.findElements(By.tagName("li"))).thenReturn(listItems);
+
+            // Simulate that clicking item1 fails.
+            doThrow(new RuntimeException("Click failed")).when(item1).click();
+
+            AssertionError error = assertThrows(AssertionError.class, () -> {
+                verifyStepDefs.webagentClicksOnAndVerifiesListBox0nOptionsAvailableSelectable(
+                    agentName, dropDownName, listBoxName, expectedOptions);
+            });
+            assertTrue(error.getMessage().contains("Option" + "Option1" + " is not selectable"));
+        }
+    }
+}
