@@ -43,3 +43,76 @@ So there you have it—the blueprint for our conversational AI chatbot. Buckle u
 ---
 
 Feel free to adjust this script as needed for your presentation. Break a leg! 🎙️🤖
+
+
+import pynput
+from pynput.mouse import Button, Controller as MouseController
+from screeninfo import get_monitors
+import subprocess
+import time
+import random
+
+# Custom FAILSAFE implementation for pynput
+FAILSAFE = True
+
+def check_failsafe(mouse):
+    """Check if the mouse is in the top-left corner (0, 0) to trigger failsafe."""
+    if FAILSAFE and mouse.position == (0, 0):
+        print("Failsafe triggered: Mouse moved to top-left corner (0, 0). Exiting.")
+        raise SystemExit("Failsafe exit")
+
+def move_mouse_randomly():
+    # Get screen size using screeninfo
+    monitor = get_monitors()[0]  # Assumes primary monitor
+    screen_width, screen_height = monitor.width, monitor.height
+
+    # Initialize mouse controller
+    mouse = MouseController()
+
+    # Check failsafe before action
+    check_failsafe(mouse)
+
+    # Generate random coordinates and duration
+    x = random.randint(0, screen_width)
+    y = random.randint(0, screen_height)
+    duration = random.uniform(0.5, 3.0)
+
+    print(f"Moving mouse to ({x}, {y}) in {duration:.2f} seconds.")
+
+    # Move mouse to random position with smooth duration
+    start_x, start_y = mouse.position
+    steps = 100  # Number of steps for smooth movement
+    for i in range(steps + 1):
+        check_failsafe(mouse)  # Check failsafe during movement
+        interp_x = start_x + (x - start_x) * (i / steps)
+        interp_y = start_y + (y - start_y) * (i / steps)
+        mouse.position = (int(interp_x), int(interp_y))
+        time.sleep(duration / steps)
+
+def scroll_mouse_randomly():
+    # Initialize mouse controller
+    mouse = MouseController()
+
+    # Check failsafe before action
+    check_failsafe(mouse)
+
+    # Generate random scroll amount
+    scroll_amount = random.randint(-100, 100)
+    print(f"Scrolling mouse by {scroll_amount} units.")
+
+    # Perform scroll (pynput uses dx, dy; dy is vertical scroll)
+    # PyAutoGUI positive scroll is up, negative is down; pynput is similar
+    mouse.scroll(0, scroll_amount // 10)  # Divide by 10 to normalize scroll intensity
+
+# Example usage
+if __name__ == "__main__":
+    try:
+        while True:
+            move_mouse_randomly()
+            time.sleep(1)  # Pause between actions
+            scroll_mouse_randomly()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Script terminated by user.")
+    except SystemExit as e:
+        print(e)
